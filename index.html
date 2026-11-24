@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Radio ID • Head Unit Edition</title>
+    
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#090d16">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300e5ff' stroke-width='2.5'><circle cx='12' cy='12' r='2'/><path d='M16.24 7.76a6 6 0 0 1 0 8.49m-12.48 0a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14'/></svg>">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#090d16',
+                        panelbg: '#131b2e',
+                        panelborder: '#202b44',
+                        cyanaccent: '#00e5ff',
+                        amberaccent: '#ffb300'
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite alternate',
+                        'bar-eq-1': 'eq 1.1s ease-in-out infinite alternate',
+                        'bar-eq-2': 'eq 0.7s ease-in-out infinite alternate',
+                        'bar-eq-3': 'eq 1.4s ease-in-out infinite alternate',
+                        'bar-eq-4': 'eq 0.9s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        eq: {
+                            '0%': { height: '20%' },
+                            '100%': { height: '100%' }
+                        },
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 15px rgba(0, 229, 255, 0.2)' },
+                            '100%': { boxShadow: '0 0 35px rgba(0, 229, 255, 0.6)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- HLS.js for .m3u8 streaming support -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <!-- Google Font - Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #090d16;
+            color: #f1f5f9;
+        }
+
+        /* Custom Scrollbar optimized for Head Unit touch */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #202b44;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00e5ff;
+        }
+
+        .active-tab {
+            background: #00e5ff !important;
+            color: #090d16 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+        }
+
+        .font-mono-clock {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col antialiased bg-darkbg">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- TOP COMPACT CAR STATUS BAR -->
+    <header class="h-14 px-4 sm:px-6 bg-[#0e1526] border-b border-panelborder flex items-center justify-between shrink-0 z-40 select-none shadow-md">
+        <!-- App Title & Branding -->
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <i data-lucide="radio" class="w-5 h-5 text-darkbg"></i>
+            </div>
+            <div class="flex items-center gap-2">
+                <h1 class="font-black text-base tracking-wider text-white uppercase">RADIO ID</h1>
+                <span class="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyanaccent border border-cyan-500/40 text-[10px] font-extrabold tracking-widest">HEAD UNIT</span>
+            </div>
+        </div>
+
+        <!-- Center: Digital Clock (Head Unit Essential) -->
+        <div class="hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-xl bg-panelbg border border-panelborder">
+            <i data-lucide="clock" class="w-4 h-4 text-cyanaccent"></i>
+            <span id="digital-clock" class="font-mono-clock font-bold text-base text-white tracking-widest">00:00</span>
+        </div>
+
+        <!-- Right: Controls (Sleep Timer, Fullscreen, Refresh) -->
+        <div class="flex items-center gap-2">
+            <!-- Sleep Timer Button -->
+            <button id="sleep-timer-btn" onclick="toggleSleepTimerModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-panelbg hover:bg-slate-800 border border-panelborder text-xs font-bold text-slate-300 active:scale-95 transition">
+                <i data-lucide="timer" class="w-4 h-4 text-amberaccent"></i>
+                <span id="sleep-timer-label">Timer: Off</span>
+            </button>
+
+            <!-- Fullscreen Toggle Button -->
+            <button onclick="toggleFullScreen()" title="Layar Penuh" class="p-2 rounded-xl bg-panelbg hover:bg-slate-800 border border-panelborder text-slate-300 active:scale-95 transition">
+                <i data-lucide="maximize" class="w-4.5 h-4.5 text-cyanaccent" id="fullscreen-icon"></i>
+            </button>
+
+            <!-- Refresh Online Radio Data -->
+            <button onclick="fetchOnlineRadioData(true)" title="Perbarui Station List" class="p-2 rounded-xl bg-panelbg hover:bg-slate-800 border border-panelborder text-slate-300 active:scale-95 transition">
+                <i data-lucide="refresh-cw" class="w-4.5 h-4.5 text-slate-300" id="sync-icon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN LANDSCAPE DASHBOARD (SPLIT SCREEN 38% / 62%) -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden p-3 gap-3">
+        
+        <!-- LEFT PANEL: DEDICATED CAR MEDIA PLAYER (~38% width) -->
+        <section class="w-full md:w-[38%] lg:w-[36%] xl:w-[34%] flex flex-col bg-panelbg rounded-2xl border border-panelborder p-4 shrink-0 overflow-y-auto justify-between shadow-2xl relative">
+            
+            <!-- Station Header & Status Badge -->
+            <div class="flex items-start justify-between gap-3 border-b border-panelborder pb-3">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <!-- Station Avatar -->
+                    <div id="player-station-avatar" class="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 flex items-center justify-center text-cyanaccent font-black text-xl shadow-inner shrink-0">
+                        IS
+                    </div>
+                    <div class="overflow-hidden">
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span id="player-status-badge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-800 text-slate-400 border border-slate-700">
+                                <span class="w-2 h-2 rounded-full bg-slate-500" id="player-status-dot"></span>
+                                <span id="player-status-text">SIAP</span>
+                            </span>
+                        </div>
+                        <h2 id="player-station-name" class="font-black text-lg sm:text-xl text-white truncate leading-snug">Iswara FM</h2>
+                        <p id="player-station-sub" class="text-xs font-semibold text-slate-400 truncate">Jawa Tengah • Musik Indonesia</p>
+                    </div>
+                </div>
+
+                <!-- Equalizer Animation Box -->
+                <div id="equalizer" class="flex items-end gap-1 h-7 px-2 py-1 rounded-lg bg-slate-950 border border-slate-800 shrink-0 hidden">
+                    <div class="w-1.5 bg-cyanaccent rounded-full animate-bar-eq-1 h-full"></div>
+                    <div class="w-1.5 bg-cyan-400 rounded-full animate-bar-eq-2 h-full"></div>
+                    <div class="w-1.5 bg-amberaccent rounded-full animate-bar-eq-3 h-full"></div>
+                    <div class="w-1.5 bg-emerald-400 rounded-full animate-bar-eq-4 h-full"></div>
+                </div>
+            </div>
+
+            <!-- Player Visualizer Box & URL Info -->
+            <div class="my-3 py-4 px-3 rounded-2xl bg-slate-950 border border-slate-800/80 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+                <div class="w-14 h-14 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-2">
+                    <i data-lucide="radio-receiver" class="w-7 h-7 text-cyanaccent" id="main-player-icon"></i>
+                </div>
+                
+                <p id="player-url-display" class="text-[11px] font-mono text-slate-400 max-w-full truncate px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">
+                    Siap memutar audio...
+                </p>
+
+                <!-- Quick Action on Error -->
+                <button id="fix-stream-btn" onclick="openCurrentStationEdit()" class="mt-2.5 hidden items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 text-amberaccent border border-amber-500/40 text-xs font-bold hover:bg-amber-500/30 transition">
+                    <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
+                    <span>Edit Stream URL / Server Alternatif</span>
+                </button>
+            </div>
+
+            <!-- GIANT AUTOMOTIVE TOUCH CONTROLS -->
+            <div class="flex items-center justify-center gap-3 my-1">
+                <!-- PREVIOUS BUTTON -->
+                <button onclick="playPrevStation()" class="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-200 active:scale-90 transition shadow-lg shrink-0" title="Stasiun Sebelumnya">
+                    <i data-lucide="skip-back" class="w-8 h-8"></i>
+                </button>
+
+                <!-- PLAY / PAUSE GIANT BUTTON -->
+                <button id="main-play-btn" onclick="togglePlayPause()" class="w-20 h-20 sm:w-22 sm:h-22 rounded-3xl bg-gradient-to-tr from-cyan-600 via-cyan-400 to-teal-300 hover:from-cyan-500 hover:to-teal-200 text-darkbg flex items-center justify-center active:scale-90 transition shadow-xl shadow-cyan-500/30 border border-cyan-200 animate-pulse-glow shrink-0">
+                    <i data-lucide="play" class="w-11 h-11 fill-darkbg translate-x-0.5" id="main-play-icon"></i>
+                </button>
+
+                <!-- NEXT BUTTON -->
+                <button onclick="playNextStation()" class="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-200 active:scale-90 transition shadow-lg shrink-0" title="Stasiun Berikutnya">
+                    <i data-lucide="skip-forward" class="w-8 h-8"></i>
+                </button>
+            </div>
+
+            <!-- Star & Edit Actions -->
+            <div class="flex items-center justify-center gap-3 my-2">
+                <button id="player-star-btn" onclick="toggleFavoriteCurrentStation()" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-300 transition">
+                    <i data-lucide="star" class="w-4 h-4 text-amberaccent" id="player-star-icon"></i>
+                    <span id="player-star-text">Tambah Favorit</span>
+                </button>
+            </div>
+
+            <!-- TOUCH-FRIENDLY VOLUME BAR (With - and + Buttons for Driving Safety) -->
+            <div class="mt-2 bg-slate-950 border border-slate-800 p-2.5 rounded-2xl flex items-center gap-2">
+                <!-- Mute Toggle -->
+                <button onclick="toggleMute()" id="mute-btn" class="p-2 rounded-xl text-slate-300 hover:bg-slate-800 transition">
+                    <i data-lucide="volume-2" class="w-5 h-5 text-cyanaccent" id="volume-icon"></i>
+                </button>
+
+                <!-- Step Down Button -->
+                <button onclick="changeVolumeStep(-0.1)" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-black text-lg active:scale-95 flex items-center justify-center shrink-0">
+                    -
+                </button>
+
+                <!-- Volume Slider -->
+                <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.9" oninput="changeVolume(this.value)" class="w-full h-2.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyanaccent">
+
+                <!-- Step Up Button -->
+                <button onclick="changeVolumeStep(0.1)" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-black text-lg active:scale-95 flex items-center justify-center shrink-0">
+                    +
+                </button>
+
+                <!-- Percentage text -->
+                <span id="volume-percent" class="text-xs font-mono font-bold text-slate-300 w-9 text-right shrink-0">90%</span>
+            </div>
+
+        </section>
+
+        <!-- RIGHT PANEL: BROWSER & PROVINCE SELECTOR (~62% width) -->
+        <section class="w-full md:w-[62%] lg:w-[64%] xl:w-[66%] flex flex-col bg-panelbg rounded-2xl border border-panelborder p-4 flex-1 overflow-hidden shadow-2xl">
+            
+            <!-- TOP NAV TABS (⭐ Favorit, 🗺️ Provinsi, 📻 Semua Radio) -->
+            <div class="flex items-center justify-between gap-2 border-b border-panelborder pb-3 shrink-0">
+                <div class="flex items-center gap-2 overflow-x-auto">
+                    <button id="tab-fav" onclick="switchTab('favorites')" class="active-tab flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition shrink-0">
+                        <i data-lucide="star" class="w-4 h-4"></i>
+                        <span>⭐ Favorit Saya</span>
+                    </button>
+                    <button id="tab-prov" onclick="switchTab('provinces')" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold text-slate-400 hover:text-white transition shrink-0">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>
+                        <span>🗺️ Wilayah Provinsi</span>
+                    </button>
+                    <button id="tab-all" onclick="switchTab('all')" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold text-slate-400 hover:text-white transition shrink-0">
+                        <i data-lucide="radio" class="w-4 h-4 text-cyanaccent"></i>
+                        <span>📻 Semua Radio</span>
+                    </button>
+                </div>
+
+                <span id="station-count-summary" class="text-xs font-bold text-slate-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 shrink-0">
+                    0 Stasiun
+                </span>
+            </div>
+
+            <!-- SEARCH BAR & ACTION CONTROLS -->
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 my-3 shrink-0">
+                <!-- Search Input -->
+                <div class="sm:col-span-6 relative">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
+                    <input type="text" id="search-input" oninput="handleSearchInput()" placeholder="Cari radio, kota, atau provinsi..." class="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs sm:text-sm focus:outline-none focus:border-cyanaccent">
+                    <button id="clear-search-btn" onclick="clearSearch()" class="hidden absolute right-3 top-2.5 text-slate-400 hover:text-white">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- HTTPS Only Toggle -->
+                <div class="sm:col-span-3 flex items-center justify-between px-3 py-2 bg-slate-950 rounded-xl border border-slate-800">
+                    <label for="https-only-toggle" class="text-xs text-slate-300 font-bold cursor-pointer select-none flex items-center gap-1.5">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                        <span>HTTPS Only</span>
+                    </label>
+                    <input type="checkbox" id="https-only-toggle" onchange="toggleHttpsFilter()" class="w-4 h-4 rounded text-cyanaccent focus:ring-cyanaccent bg-slate-900 border-slate-700 cursor-pointer">
+                </div>
+
+                <!-- Add Custom Station Button -->
+                <button onclick="openAddStationModal()" class="sm:col-span-3 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-darkbg font-extrabold text-xs transition active:scale-95 shadow-md">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>+ Tambah Radio</span>
+                </button>
+            </div>
+
+            <!-- Back to Provinces Header (Only visible inside province detail view) -->
+            <div id="province-back-header" class="hidden items-center justify-between bg-slate-900 p-2.5 mb-2.5 rounded-xl border border-slate-800 shrink-0">
+                <button onclick="backToProvincesGrid()" class="flex items-center gap-2 text-cyanaccent hover:text-cyan-300 font-extrabold text-xs sm:text-sm transition">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    <span>← Kembali ke Daftar Provinsi</span>
+                </button>
+                <h3 id="current-province-title" class="font-extrabold text-xs sm:text-sm text-white">Provinsi</h3>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="data-loading-indicator" class="hidden rounded-xl p-6 text-center border border-slate-800 bg-slate-950 my-auto">
+                <div class="w-8 h-8 border-4 border-cyanaccent border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p class="text-sm font-bold text-slate-200">Mengambil database radio Indonesia...</p>
+                <p class="text-xs text-slate-500 mt-1">Menghubungkan ke server Radio-Browser API...</p>
+            </div>
+
+            <!-- MAIN GRID SCROLLABLE CONTAINER -->
+            <div id="stations-container" class="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2.5 pr-1">
+                <!-- Dynamically Populated by JS -->
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: ADD / EDIT CUSTOM STATION -->
+    <div id="station-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-panelbg w-full max-w-lg rounded-3xl p-6 border border-panelborder shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                <h3 id="modal-title" class="font-bold text-lg text-white">Tambah / Edit Stasiun Radio</h3>
+                <button onclick="closeModal()" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Stasiun Radio *</label>
+                    <input type="text" id="input-name" placeholder="Contoh: Delta FM" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-cyanaccent">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Wilayah Provinsi</label>
+                        <select id="input-province" class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-cyanaccent">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Kota / Frekuensi</label>
+                        <input type="text" id="input-sub" placeholder="Contoh: 99.1 FM Jakarta" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-cyanaccent">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Kata Kunci Pencarian</label>
+                    <input type="text" id="input-keyword" placeholder="Contoh: delta fm jakarta" class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-cyanaccent">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">URL Streaming (.mp3 / .aac / .m3u8)</label>
+                    <input type="text" id="input-url" placeholder="https://..." class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-cyanaccent">
+                </div>
+
+                <!-- Online Search Tool in Modal -->
+                <div class="pt-2 border-t border-slate-800">
+                    <button type="button" onclick="searchRadioBrowserInModal()" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyanaccent text-xs font-bold flex items-center justify-center gap-2 transition">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                        <span>Cari Stream URL di Database Online</span>
+                    </button>
+
+                    <div id="search-results-box" class="mt-3 hidden space-y-2 max-h-40 overflow-y-auto p-2 bg-slate-950 rounded-xl border border-slate-800">
+                        <!-- Results populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+                <button id="modal-delete-btn" onclick="deleteCurrentStation()" class="px-4 py-2.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-semibold hover:bg-rose-500/30 transition mr-auto hidden">
+                    Hapus
+                </button>
+                <button onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition">
+                    Batal
+                </button>
+                <button onclick="saveModalStation()" class="px-5 py-2.5 rounded-xl bg-cyan-500 text-darkbg font-black text-xs transition shadow-lg">
+                    Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SLEEP TIMER -->
+    <div id="sleep-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-panelbg w-full max-w-xs rounded-3xl p-6 border border-panelborder shadow-2xl flex flex-col gap-4 text-center">
+            <h3 class="font-extrabold text-lg text-white">Timer Tidur (Sleep Timer)</h3>
+            <p class="text-xs text-slate-400">Pilih waktu agar radio otomatis mati.</p>
+            
+            <div class="grid grid-cols-1 gap-2">
+                <button onclick="setSleepTimer(0)" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-sm font-semibold transition">
+                    Off (Matikan Timer)
+                </button>
+                <button onclick="setSleepTimer(15)" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyanaccent text-sm font-semibold transition">
+                    15 Menit
+                </button>
+                <button onclick="setSleepTimer(30)" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyanaccent text-sm font-semibold transition">
+                    30 Menit
+                </button>
+                <button onclick="setSleepTimer(60)" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyanaccent text-sm font-semibold transition">
+                    60 Menit
+                </button>
+            </div>
+
+            <button onclick="closeSleepModal()" class="mt-2 text-xs text-slate-400 hover:text-white">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <!-- Hidden HTML5 Audio Element -->
+    <audio id="audio-player" preload="none" class="hidden"></audio>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // -------------------------------------------------------------
+        // PRE-LOADED USER FAVORITE STATIONS
+        // -------------------------------------------------------------
+        const INITIAL_USER_FAVORITES = [
+            { id: "fav-1", name: "Iswara FM", subtitle: "Musik Indonesia & Hits", state: "Jawa Tengah", keyword: "iswara", url: "" },
+            { id: "fav-2", name: "Gajahmada FM", subtitle: "102.4 FM Semarang", state: "Jawa Tengah", keyword: "gajahmada semarang", url: "" },
+            { id: "fav-3", name: "Imelda FM", subtitle: "104.4 FM Semarang", state: "Jawa Tengah", keyword: "imelda semarang", url: "" },
+            { id: "fav-4", name: "Golden Classy", subtitle: "Classic & Golden Memories", state: "Jawa Tengah", keyword: "golden classy", url: "" },
+            { id: "fav-5", name: "Jak FM", subtitle: "101 FM Jakarta", state: "DKI Jakarta", keyword: "jak fm", url: "" },
+            { id: "fav-6", name: "Delta FM", subtitle: "99.1 FM Jakarta", state: "DKI Jakarta", keyword: "delta fm", url: "" },
+            { id: "fav-7", name: "Radio Kota Batik", subtitle: "91.2 FM Pekalongan", state: "Jawa Tengah", keyword: "kota batik pekalongan", url: "" }
+        ];
+
+        // -------------------------------------------------------------
+        // PROVINCES LIST & SMART NORMALIZATION ENGINE
+        // -------------------------------------------------------------
+        const INDONESIA_PROVINCES = [
+            "DKI Jakarta", "Jawa Tengah", "Jawa Barat", "DI Yogyakarta", "Jawa Timur", "Banten", "Bali",
+            "Aceh", "Sumatera Utara", "Sumatera Barat", "Riau", "Kepulauan Riau", "Jambi", "Sumatera Selatan",
+            "Bengkulu", "Lampung", "Kepulauan Bangka Belitung", "Kalimantan Barat", "Kalimantan Tengah",
+            "Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara", "Sulawesi Utara", "Sulawesi Tengah",
+            "Sulawesi Selatan", "Sulawesi Tenggara", "Gorontalo", "Sulawesi Barat", "Nusa Tenggara Barat (NTB)",
+            "Nusa Tenggara Timur (NTT)", "Maluku", "Maluku Utara", "Papua", "Nasional / Lainnya"
+        ];
+
+        function normalizeToProvince(stateInput, tagsInput, nameInput) {
+            const text = `${stateInput || ''} ${tagsInput || ''} ${nameInput || ''}`.toLowerCase();
+
+            if (/dki jakarta|jakarta/.test(text)) return "DKI Jakarta";
+            if (/jawa tengah|jateng|semarang|pekalongan|solo|surakarta|magelang|tegal|purwokerto|kudus|salatiga|pati|blora|cilacap|klaten|wonosobo|boyolali|kebumen|purworejo|sragen|karanganyar|rembang/.test(text)) return "Jawa Tengah";
+            if (/jawa barat|jabar|bandung|bogor|depok|bekasi|cirebon|tasikmalaya|sukabumi|garut|sumedang|indramayu|subang|karawang|purwakarta|cianjur|banjar|cimahi|majalengka|kuningan/.test(text)) return "Jawa Barat";
+            if (/yogyakarta|jogja|yogya|sleman|bantul|gunungkidul|kulon progo/.test(text)) return "DI Yogyakarta";
+            if (/jawa timur|jatim|surabaya|malang|kediri|madiun|blitar|probolinggo|pasuruan|batu|jember|banyuwangi|sidoarjo|gresik|tuban|lamongan|ponorogo|tulungagung|lumajang|situbondo|bondowoso|ngawi|magetan|pacitan/.test(text)) return "Jawa Timur";
+            if (/banten|tangerang|serang|cilegon|pandeglang|lebak/.test(text)) return "Banten";
+            if (/bali|denpasar|singaraja|ubud|badung|gianyar|tabanan/.test(text)) return "Bali";
+            if (/sumatera utara|sumut|medan|pematangsiantar|binjai|tebing tinggi|tanjungbalai|asahan|deli serdang|karo|tapanuli/.test(text)) return "Sumatera Utara";
+            if (/sumatera barat|sumbar|padang|bukittinggi|payakumbuh|padang panjang|solok|pariaman/.test(text)) return "Sumatera Barat";
+            if (/kepulauan riau|kepri|batam|tanjungpinang|bintan|karimun/.test(text)) return "Kepulauan Riau";
+            if (/riau|pekanbaru|dumai|kampar|bengkalis|siak/.test(text)) return "Riau";
+            if (/sumatera selatan|sumsel|palembang|lubuklinggau|prabumulih|paga alam|lahat/.test(text)) return "Sumatera Selatan";
+            if (/lampung|bandar lampung|metro/.test(text)) return "Lampung";
+            if (/aceh|banda aceh|lhokseumawe|langsa|sabang/.test(text)) return "Aceh";
+            if (/jambi/.test(text)) return "Jambi";
+            if (/bengkulu/.test(text)) return "Bengkulu";
+            if (/bangka|belitung|pangkalpinang/.test(text)) return "Kepulauan Bangka Belitung";
+            if (/kalimantan barat|kalbar|pontianak|singkawang/.test(text)) return "Kalimantan Barat";
+            if (/kalimantan selatan|kalsel|banjarmasin|banjarbaru/.test(text)) return "Kalimantan Selatan";
+            if (/kalimantan timur|kaltim|samarinda|balikpapan|bontang/.test(text)) return "Kalimantan Timur";
+            if (/kalimantan tengah|kalteng|palangkaraya|palangka raya/.test(text)) return "Kalimantan Tengah";
+            if (/kalimantan utara|kaltara|tarakan/.test(text)) return "Kalimantan Utara";
+            if (/sulawesi selatan|sulsel|makassar|parepare|palopo|bone/.test(text)) return "Sulawesi Selatan";
+            if (/sulawesi utara|sulut|manado|bitung|tomohon/.test(text)) return "Sulawesi Utara";
+            if (/sulawesi tengah|sulteng|palu/.test(text)) return "Sulawesi Tengah";
+            if (/sulawesi tenggara|sultra|kendari|baubau|bau-bau/.test(text)) return "Sulawesi Tenggara";
+            if (/gorontalo/.test(text)) return "Gorontalo";
+            if (/sulawesi barat|sulbar|mamuju/.test(text)) return "Sulawesi Barat";
+            if (/nusa tenggara barat|ntb|mataram|bima|lombok|sumbawa/.test(text)) return "Nusa Tenggara Barat (NTB)";
+            if (/nusa tenggara timur|ntt|kupang|flores|sumba/.test(text)) return "Nusa Tenggara Timur (NTT)";
+            if (/maluku utara|malut|ternate|tidore/.test(text)) return "Maluku Utara";
+            if (/maluku|ambon/.test(text)) return "Maluku";
+            if (/papua|jayapura|merauke|timika|sorong|manokwari|biak/.test(text)) return "Papua";
+
+            return "Nasional / Lainnya";
+        }
+
+        // -------------------------------------------------------------
+        // APPLICATION STATE VARIABLES
+        // -------------------------------------------------------------
+        let allStations = [];
+        let favoriteIds = new Set();
+        let currentTab = 'favorites';
+        let selectedProvince = null;
+        let searchQuery = '';
+        let httpsOnlyFilter = false;
+
+        let activeStationList = [];
+        let currentPlayIndex = 0;
+        let isPlaying = false;
+        let isMuted = false;
+        let hlsPlayer = null;
+        let editingStationId = null;
+
+        let sleepTimerMinutes = 0;
+        let sleepTimerInterval = null;
+        let sleepEndTime = null;
+
+        const audioElement = document.getElementById('audio-player');
+
+        // Radio-Browser API Mirrors
+        const API_MIRRORS = [
+            'https://de1.api.radio-browser.info/json/stations/bycountrycodeexact/ID?hidebroken=true&order=clickcount&reverse=true&limit=1000',
+            'https://at1.api.radio-browser.info/json/stations/bycountrycodeexact/ID?hidebroken=true&order=clickcount&reverse=true&limit=1000',
+            'https://nl1.api.radio-browser.info/json/stations/bycountrycodeexact/ID?hidebroken=true&order=clickcount&reverse=true&limit=1000'
+        ];
+
+        // -------------------------------------------------------------
+        // INITIALIZATION & CLOCK
+        // -------------------------------------------------------------
+        window.addEventListener('DOMContentLoaded', async () => {
+            lucide.createIcons();
+            populateProvinceDropdown();
+            loadFavoritesFromStorage();
+            startDigitalClock();
+
+            // Audio player event listeners
+            audioElement.addEventListener('playing', handleAudioPlaying);
+            audioElement.addEventListener('pause', handleAudioPause);
+            audioElement.addEventListener('waiting', handleAudioWaiting);
+            audioElement.addEventListener('error', handleAudioError);
+
+            setupMediaSession();
+
+            // Fetch online stations
+            await fetchOnlineRadioData();
+
+            // Select default first station (Iswara FM) without autoplay
+            if (activeStationList.length > 0) {
+                selectStation(0, false);
+            }
+        });
+
+        function startDigitalClock() {
+            const clockEl = document.getElementById('digital-clock');
+            const updateClock = () => {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                clockEl.innerText = `${hours}:${minutes}`;
+            };
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        // Fullscreen Toggle
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    showToast("Tidak bisa masuk mode Fullscreen", "error");
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // -------------------------------------------------------------
+        // STORAGE & DATA FETCHING
+        // -------------------------------------------------------------
+        function loadFavoritesFromStorage() {
+            const savedFavs = localStorage.getItem('radio_app_fav_ids');
+            if (savedFavs) {
+                try {
+                    favoriteIds = new Set(JSON.parse(savedFavs));
+                } catch (e) {
+                    favoriteIds = new Set(INITIAL_USER_FAVORITES.map(f => f.id));
+                }
+            } else {
+                favoriteIds = new Set(INITIAL_USER_FAVORITES.map(f => f.id));
+                saveFavoritesToStorage();
+            }
+        }
+
+        function saveFavoritesToStorage() {
+            localStorage.setItem('radio_app_fav_ids', JSON.stringify(Array.from(favoriteIds)));
+        }
+
+        function populateProvinceDropdown() {
+            const select = document.getElementById('input-province');
+            select.innerHTML = '';
+            INDONESIA_PROVINCES.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.innerText = p;
+                select.appendChild(opt);
+            });
+        }
+
+        async function fetchOnlineRadioData(forceRefresh = false) {
+            const indicator = document.getElementById('data-loading-indicator');
+            const syncIcon = document.getElementById('sync-icon');
+            indicator.classList.remove('hidden');
+            if (syncIcon) syncIcon.classList.add('animate-spin');
+
+            let rawFetched = [];
+            let fetchSuccess = false;
+
+            const cachedData = localStorage.getItem('radio_app_all_stations_cache');
+            const cacheTime = localStorage.getItem('radio_app_cache_timestamp');
+            const isCacheValid = cacheTime && (Date.now() - parseInt(cacheTime) < 24 * 60 * 60 * 1000);
+
+            if (!forceRefresh && cachedData && isCacheValid) {
+                try {
+                    rawFetched = JSON.parse(cachedData);
+                    fetchSuccess = true;
+                } catch (e) {
+                    fetchSuccess = false;
+                }
+            }
+
+            if (!fetchSuccess) {
+                for (const url of API_MIRRORS) {
+                    try {
+                        const res = await fetch(url, { cache: 'no-cache' });
+                        if (res.ok) {
+                            rawFetched = await res.json();
+                            fetchSuccess = true;
+                            localStorage.setItem('radio_app_all_stations_cache', JSON.stringify(rawFetched));
+                            localStorage.setItem('radio_app_cache_timestamp', Date.now().toString());
+                            break;
+                        }
+                    } catch (err) {
+                        console.warn("Mirror failed:", url);
+                    }
+                }
+            }
+
+            const processedMap = new Map();
+
+            // Load custom manual stations first
+            const customSaved = localStorage.getItem('radio_app_custom_stations');
+            if (customSaved) {
+                try {
+                    const customs = JSON.parse(customSaved);
+                    customs.forEach(c => processedMap.set(c.id, c));
+                } catch (e) {}
+            }
+
+            // Load initial pre-loaded favorites
+            INITIAL_USER_FAVORITES.forEach(fav => {
+                processedMap.set(fav.id, { ...fav });
+            });
+
+            // Merge online Radio-Browser entries
+            if (fetchSuccess && rawFetched.length > 0) {
+                rawFetched.forEach(item => {
+                    const streamUrl = item.url_resolved || item.url;
+                    if (!streamUrl) return;
+
+                    const prov = normalizeToProvince(item.state, item.tags, item.name);
+                    const stationObj = {
+                        id: item.stationuuid || `rb-${item.changeuuid || Math.random()}`,
+                        name: item.name ? item.name.trim() : 'Radio Indonesia',
+                        subtitle: item.state ? `${item.state} (${item.codec || 'MP3'})` : `${prov} (${item.codec || 'MP3'})`,
+                        state: prov,
+                        keyword: item.name,
+                        url: streamUrl,
+                        isHttps: streamUrl.startsWith('https://'),
+                        votes: item.votes || 0
+                    };
+
+                    // Match with initial favorites to attach stream URL
+                    INITIAL_USER_FAVORITES.forEach(fav => {
+                        const matchKw = fav.keyword.toLowerCase();
+                        if (stationObj.name.toLowerCase().includes(matchKw) || matchKw.includes(stationObj.name.toLowerCase())) {
+                            const existingFav = processedMap.get(fav.id);
+                            if (existingFav && !existingFav.url) {
+                                existingFav.url = streamUrl;
+                                existingFav.isHttps = streamUrl.startsWith('https://');
+                            }
+                        }
+                    });
+
+                    processedMap.set(stationObj.id, stationObj);
+                });
+            }
+
+            allStations = Array.from(processedMap.values());
+
+            indicator.classList.add('hidden');
+            if (syncIcon) syncIcon.classList.remove('animate-spin');
+
+            if (forceRefresh) {
+                showToast("Data radio berhasil diperbarui!", "success");
+            }
+
+            renderCurrentTab();
+        }
+
+        // -------------------------------------------------------------
+        // RENDER & UI ENGINE
+        // -------------------------------------------------------------
+        function switchTab(tab) {
+            currentTab = tab;
+            selectedProvince = null;
+            document.getElementById('province-back-header').classList.add('hidden');
+            
+            document.getElementById('tab-fav').classList.remove('active-tab');
+            document.getElementById('tab-prov').classList.remove('active-tab');
+            document.getElementById('tab-all').classList.remove('active-tab');
+
+            if (tab === 'favorites') document.getElementById('tab-fav').classList.add('active-tab');
+            if (tab === 'provinces') document.getElementById('tab-prov').classList.add('active-tab');
+            if (tab === 'all') document.getElementById('tab-all').classList.add('active-tab');
+
+            renderCurrentTab();
+        }
+
+        function renderCurrentTab() {
+            const container = document.getElementById('stations-container');
+            container.innerHTML = '';
+
+            let displayList = filterStations();
+
+            if (currentTab === 'provinces' && !selectedProvince && !searchQuery) {
+                renderProvincesGrid();
+                return;
+            }
+
+            if (currentTab === 'provinces' && selectedProvince) {
+                document.getElementById('province-back-header').classList.remove('hidden');
+                document.getElementById('province-back-header').classList.add('flex');
+                document.getElementById('current-province-title').innerText = selectedProvince;
+            } else {
+                document.getElementById('province-back-header').classList.add('hidden');
+                document.getElementById('province-back-header').classList.remove('flex');
+            }
+
+            activeStationList = displayList;
+            document.getElementById('station-count-summary').innerText = `${displayList.length} Stasiun`;
+
+            if (displayList.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full rounded-2xl p-8 text-center border border-slate-800 bg-slate-950 my-auto">
+                        <i data-lucide="radio-off" class="w-10 h-10 text-slate-500 mx-auto mb-2"></i>
+                        <p class="font-extrabold text-slate-200">Tidak ada stasiun radio ditemukan.</p>
+                        <p class="text-xs text-slate-500 mt-1">Coba sesuaikan kata pencarian atau matikan filter 'HTTPS Only'.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            displayList.forEach((st, index) => {
+                const isFav = favoriteIds.has(st.id);
+                const currentStation = activeStationList[currentPlayIndex];
+                const isActive = currentStation && currentStation.id === st.id;
+
+                const card = document.createElement('div');
+                card.className = `rounded-2xl p-3.5 flex items-center justify-between gap-3 border transition duration-200 cursor-pointer ${
+                    isActive 
+                        ? 'border-cyanaccent bg-cyan-950/40 ring-1 ring-cyanaccent/50 shadow-lg shadow-cyan-950/50' 
+                        : 'border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden flex-1" onclick="selectStation(${index}, true)">
+                        <div class="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center font-black text-sm ${
+                            isActive ? 'bg-cyanaccent text-darkbg' : 'bg-slate-900 text-slate-300 border border-slate-800'
+                        }">
+                            ${st.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div class="overflow-hidden">
+                            <h4 class="font-extrabold text-sm truncate text-white ${isActive ? 'text-cyanaccent' : ''}">${st.name}</h4>
+                            <div class="flex items-center gap-2 text-xs text-slate-400 truncate mt-0.5">
+                                <span>${st.state || 'Indonesia'}</span>
+                                ${st.isHttps ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">HTTPS</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1 shrink-0">
+                        ${isActive && isPlaying ? `
+                            <span class="flex h-3 w-3 relative mr-1">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-3 w-3 bg-cyanaccent"></span>
+                            </span>
+                        ` : ''}
+
+                        <button onclick="toggleFavorite(event, '${st.id}')" class="p-2 rounded-xl text-slate-400 hover:text-amberaccent transition" title="Tambah ke Favorit">
+                            <i data-lucide="star" class="w-4.5 h-4.5 ${isFav ? 'text-amberaccent fill-amberaccent' : ''}"></i>
+                        </button>
+
+                        <button onclick="openEditModal(event, '${st.id}')" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition" title="Edit Stasiun">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            lucide.createIcons();
+            updatePlayerStarButtonState();
+        }
+
+        function renderProvincesGrid() {
+            const container = document.getElementById('stations-container');
+            container.innerHTML = '';
+
+            const provinceCounts = {};
+            INDONESIA_PROVINCES.forEach(p => provinceCounts[p] = 0);
+
+            let filterable = allStations;
+            if (httpsOnlyFilter) filterable = filterable.filter(s => s.isHttps);
+
+            filterable.forEach(st => {
+                const prov = st.state || "Nasional / Lainnya";
+                if (provinceCounts[prov] !== undefined) {
+                    provinceCounts[prov]++;
+                } else {
+                    provinceCounts["Nasional / Lainnya"]++;
+                }
+            });
+
+            document.getElementById('station-count-summary').innerText = `${INDONESIA_PROVINCES.length} Provinsi`;
+
+            INDONESIA_PROVINCES.forEach(prov => {
+                const count = provinceCounts[prov] || 0;
+                const card = document.createElement('div');
+                card.className = "rounded-2xl p-3.5 flex items-center justify-between gap-3 border border-slate-800 bg-slate-950/60 hover:border-cyanaccent/50 hover:bg-slate-900 transition cursor-pointer group";
+                
+                card.onclick = () => {
+                    selectedProvince = prov;
+                    renderCurrentTab();
+                };
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400 group-hover:bg-cyanaccent group-hover:text-darkbg transition">
+                            <i data-lucide="map-pin" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-extrabold text-sm text-white group-hover:text-cyanaccent transition">${prov}</h4>
+                            <p class="text-xs text-slate-400">${count} Stasiun Radio</p>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-5 h-5 text-slate-500 group-hover:text-white transition"></i>
+                `;
+
+                container.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        function filterStations() {
+            let list = [...allStations];
+
+            if (currentTab === 'favorites') {
+                list = list.filter(s => favoriteIds.has(s.id));
+            } else if (currentTab === 'provinces' && selectedProvince) {
+                list = list.filter(s => (s.state || 'Nasional / Lainnya') === selectedProvince);
+            }
+
+            if (httpsOnlyFilter) {
+                list = list.filter(s => s.isHttps);
+            }
+
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                list = list.filter(s => 
+                    s.name.toLowerCase().includes(q) || 
+                    (s.subtitle && s.subtitle.toLowerCase().includes(q)) || 
+                    (s.state && s.state.toLowerCase().includes(q))
+                );
+            }
+
+            return list;
+        }
+
+        function backToProvincesGrid() {
+            selectedProvince = null;
+            renderCurrentTab();
+        }
+
+        function toggleFavorite(event, id) {
+            if (event) event.stopPropagation();
+            if (favoriteIds.has(id)) {
+                favoriteIds.delete(id);
+                showToast("Dihapus dari Favorit", "info");
+            } else {
+                favoriteIds.add(id);
+                showToast("Ditambahkan ke Favorit", "success");
+            }
+            saveFavoritesToStorage();
+            renderCurrentTab();
+        }
+
+        function toggleFavoriteCurrentStation() {
+            if (activeStationList.length > 0) {
+                const current = activeStationList[currentPlayIndex];
+                if (current) toggleFavorite(null, current.id);
+            }
+        }
+
+        function updatePlayerStarButtonState() {
+            if (activeStationList.length === 0) return;
+            const current = activeStationList[currentPlayIndex];
+            if (!current) return;
+
+            const isFav = favoriteIds.has(current.id);
+            const icon = document.getElementById('player-star-icon');
+            const label = document.getElementById('player-star-text');
+
+            if (isFav) {
+                icon.className = "w-4 h-4 text-amberaccent fill-amberaccent";
+                label.innerText = "Stasiun Favorit";
+            } else {
+                icon.className = "w-4 h-4 text-slate-400";
+                label.innerText = "Tambah Favorit";
+            }
+        }
+
+        // -------------------------------------------------------------
+        // RADIO PLAYBACK ENGINE
+        // -------------------------------------------------------------
+        async function selectStation(index, autoPlay = true) {
+            if (index < 0 || index >= activeStationList.length) return;
+
+            currentPlayIndex = index;
+            const station = activeStationList[currentPlayIndex];
+
+            document.getElementById('player-station-avatar').innerText = station.name.substring(0, 2).toUpperCase();
+            document.getElementById('player-station-name').innerText = station.name;
+            document.getElementById('player-station-sub').innerText = `${station.state || 'Indonesia'} • ${station.subtitle || ''}`;
+            document.getElementById('fix-stream-btn').classList.add('hidden');
+
+            renderCurrentTab();
+            updateMediaSessionMetadata();
+
+            if (autoPlay) {
+                await startStreamingStation(station);
+            } else {
+                updateStatusUI("SIAP", "bg-slate-500", "SIAP DIPUTAR");
+                document.getElementById('player-url-display').innerText = station.url || "Klik PLAY untuk memutar";
+            }
+        }
+
+        async function startStreamingStation(station) {
+            updateStatusUI("CONNECTING", "bg-amberaccent animate-ping", "MENGHUBUNGKAN...");
+            document.getElementById('fix-stream-btn').classList.add('hidden');
+
+            let streamUrl = station.url;
+
+            if (!streamUrl || streamUrl.trim() === "") {
+                document.getElementById('player-url-display').innerText = "Mencari server online...";
+                streamUrl = await resolveStreamFromOnlineDatabase(station.keyword || station.name);
+                if (streamUrl) {
+                    station.url = streamUrl;
+                    station.isHttps = streamUrl.startsWith('https://');
+                }
+            }
+
+            if (!streamUrl) {
+                updateStatusUI("ERROR", "bg-rose-500", "SERVER TIDAK DITEMUKAN");
+                document.getElementById('player-url-display').innerText = "Gagal menemukan stream URL.";
+                document.getElementById('fix-stream-btn').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('player-url-display').innerText = streamUrl;
+
+            if (hlsPlayer) {
+                hlsPlayer.destroy();
+                hlsPlayer = null;
+            }
+
+            if (streamUrl.includes('.m3u8')) {
+                if (Hls.isSupported()) {
+                    hlsPlayer = new Hls();
+                    hlsPlayer.loadSource(streamUrl);
+                    hlsPlayer.attachMedia(audioElement);
+                    hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+                        audioElement.play().catch(handleAudioError);
+                    });
+                    hlsPlayer.on(Hls.Events.ERROR, (event, data) => {
+                        if (data.fatal) handleAudioError(data);
+                    });
+                } else if (audioElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    audioElement.src = streamUrl;
+                    audioElement.play().catch(handleAudioError);
+                }
+            } else {
+                audioElement.src = streamUrl;
+                audioElement.play().catch(handleAudioError);
+            }
+        }
+
+        function togglePlayPause() {
+            if (isPlaying) {
+                audioElement.pause();
+            } else {
+                if (activeStationList.length === 0) return;
+                const currentStation = activeStationList[currentPlayIndex];
+                startStreamingStation(currentStation);
+            }
+        }
+
+        function playNextStation() {
+            if (activeStationList.length === 0) return;
+            const nextIdx = (currentPlayIndex + 1) % activeStationList.length;
+            selectStation(nextIdx, true);
+        }
+
+        function playPrevStation() {
+            if (activeStationList.length === 0) return;
+            const prevIdx = (currentPlayIndex - 1 + activeStationList.length) % activeStationList.length;
+            selectStation(prevIdx, true);
+        }
+
+        // -------------------------------------------------------------
+        // RADIO BROWSER ONLINE RESOLVER API
+        // -------------------------------------------------------------
+        async function resolveStreamFromOnlineDatabase(keyword) {
+            const mirrors = [
+                'https://de1.api.radio-browser.info/json/stations/search',
+                'https://at1.api.radio-browser.info/json/stations/search',
+                'https://nl1.api.radio-browser.info/json/stations/search'
+            ];
+
+            for (const apiUrl of mirrors) {
+                try {
+                    const res = await fetch(`${apiUrl}?name=${encodeURIComponent(keyword)}&limit=5`);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    
+                    if (data && data.length > 0) {
+                        const httpsStream = data.find(i => (i.url_resolved || i.url || '').startsWith('https://'));
+                        if (httpsStream) return httpsStream.url_resolved || httpsStream.url;
+                        return data[0].url_resolved || data[0].url;
+                    }
+                } catch (e) {}
+            }
+            return null;
+        }
+
+        // -------------------------------------------------------------
+        // AUDIO EVENT HANDLERS & STATUS UPDATES
+        // -------------------------------------------------------------
+        function handleAudioPlaying() {
+            isPlaying = true;
+            updateStatusUI("LIVE", "bg-emerald-400", "LIVE");
+            document.getElementById('equalizer').classList.remove('hidden');
+            document.getElementById('main-play-icon').setAttribute('data-lucide', 'pause');
+            document.getElementById('main-play-icon').classList.remove('translate-x-0.5');
+            lucide.createIcons();
+            renderCurrentTab();
+        }
+
+        function handleAudioPause() {
+            isPlaying = false;
+            updateStatusUI("PAUSED", "bg-amberaccent", "JEDA");
+            document.getElementById('equalizer').classList.add('hidden');
+            document.getElementById('main-play-icon').setAttribute('data-lucide', 'play');
+            document.getElementById('main-play-icon').classList.add('translate-x-0.5');
+            lucide.createIcons();
+            renderCurrentTab();
+        }
+
+        function handleAudioWaiting() {
+            updateStatusUI("BUFFERING", "bg-cyanaccent animate-ping", "BUFFERING...");
+        }
+
+        function handleAudioError(e) {
+            console.error("Audio error:", e);
+            isPlaying = false;
+            updateStatusUI("OFFLINE", "bg-rose-500", "STREAM TERPUTUS");
+            document.getElementById('equalizer').classList.add('hidden');
+            document.getElementById('main-play-icon').setAttribute('data-lucide', 'play');
+            document.getElementById('fix-stream-btn').classList.remove('hidden');
+            lucide.createIcons();
+            renderCurrentTab();
+        }
+
+        function updateStatusUI(badgeState, dotClass, textLabel) {
+            const statusText = document.getElementById('player-status-text');
+            const statusDot = document.getElementById('player-status-dot');
+            statusText.innerText = textLabel;
+            statusDot.className = `w-2 h-2 rounded-full ${dotClass}`;
+        }
+
+        // -------------------------------------------------------------
+        // TOUCH VOLUME CONTROLS (Slider + Step Buttons)
+        // -------------------------------------------------------------
+        function changeVolume(val) {
+            const floatVal = Math.max(0, Math.min(1, parseFloat(val)));
+            audioElement.volume = floatVal;
+            document.getElementById('volume-slider').value = floatVal;
+            document.getElementById('volume-percent').innerText = `${Math.round(floatVal * 100)}%`;
+            
+            if (floatVal === 0) {
+                isMuted = true;
+                document.getElementById('volume-icon').setAttribute('data-lucide', 'volume-x');
+            } else {
+                isMuted = false;
+                document.getElementById('volume-icon').setAttribute('data-lucide', 'volume-2');
+            }
+            lucide.createIcons();
+        }
+
+        function changeVolumeStep(delta) {
+            const current = audioElement.volume || 0.9;
+            changeVolume(current + delta);
+        }
+
+        function toggleMute() {
+            if (isMuted) {
+                audioElement.muted = false;
+                isMuted = false;
+                changeVolume(audioElement.volume || 0.9);
+            } else {
+                audioElement.muted = true;
+                isMuted = true;
+                document.getElementById('volume-percent').innerText = '0%';
+                document.getElementById('volume-icon').setAttribute('data-lucide', 'volume-x');
+                lucide.createIcons();
+            }
+        }
+
+        // -------------------------------------------------------------
+        // SEARCH & FILTER HANDLERS
+        // -------------------------------------------------------------
+        function handleSearchInput() {
+            const val = document.getElementById('search-input').value.trim();
+            searchQuery = val;
+            const clearBtn = document.getElementById('clear-search-btn');
+            
+            if (val) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+
+            renderCurrentTab();
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            searchQuery = '';
+            document.getElementById('clear-search-btn').classList.add('hidden');
+            renderCurrentTab();
+        }
+
+        function toggleHttpsFilter() {
+            httpsOnlyFilter = document.getElementById('https-only-toggle').checked;
+            renderCurrentTab();
+        }
+
+        // -------------------------------------------------------------
+        // MEDIA SESSION API (Steering Wheel Controls & Notifications)
+        // -------------------------------------------------------------
+        function setupMediaSession() {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', () => audioElement.play());
+                navigator.mediaSession.setActionHandler('pause', () => audioElement.pause());
+                navigator.mediaSession.setActionHandler('previoustrack', () => playPrevStation());
+                navigator.mediaSession.setActionHandler('nexttrack', () => playNextStation());
+            }
+        }
+
+        function updateMediaSessionMetadata() {
+            if ('mediaSession' in navigator && activeStationList.length > 0) {
+                const current = activeStationList[currentPlayIndex];
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: current.name,
+                    artist: `${current.state || 'Indonesia'} • Head Unit Stream`,
+                    album: 'Radio ID Automotive',
+                    artwork: [
+                        { src: 'https://cdn-icons-png.flaticon.com/512/3070/3070650.png', sizes: '512x512', type: 'image/png' }
+                    ]
+                });
+            }
+        }
+
+        // -------------------------------------------------------------
+        // SLEEP TIMER
+        // -------------------------------------------------------------
+        function toggleSleepTimerModal() {
+            document.getElementById('sleep-modal').classList.remove('hidden');
+        }
+
+        function closeSleepModal() {
+            document.getElementById('sleep-modal').classList.add('hidden');
+        }
+
+        function setSleepTimer(mins) {
+            closeSleepModal();
+            if (sleepTimerInterval) clearInterval(sleepTimerInterval);
+
+            if (mins === 0) {
+                sleepTimerMinutes = 0;
+                document.getElementById('sleep-timer-label').innerText = "Timer: Off";
+                showToast("Timer tidur dimatikan", "info");
+                return;
+            }
+
+            sleepTimerMinutes = mins;
+            sleepEndTime = Date.now() + mins * 60 * 1000;
+            updateSleepTimerDisplay();
+
+            sleepTimerInterval = setInterval(() => {
+                const remainingMs = sleepEndTime - Date.now();
+                if (remainingMs <= 0) {
+                    clearInterval(sleepTimerInterval);
+                    audioElement.pause();
+                    document.getElementById('sleep-timer-label').innerText = "Timer: Off";
+                    showToast("Timer selesai. Radio dihentikan.", "info");
+                } else {
+                    updateSleepTimerDisplay();
+                }
+            }, 1000);
+
+            showToast(`Timer diatur: ${mins} menit`, "success");
+        }
+
+        function updateSleepTimerDisplay() {
+            const remainingMs = Math.max(0, sleepEndTime - Date.now());
+            const mins = Math.floor(remainingMs / 60000);
+            const secs = Math.floor((remainingMs % 60000) / 1000);
+            document.getElementById('sleep-timer-label').innerText = `Timer: ${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+        }
+
+        // -------------------------------------------------------------
+        // MODALS & CUSTOM STATIONS ENGINE
+        // -------------------------------------------------------------
+        function openAddStationModal() {
+            editingStationId = null;
+            document.getElementById('modal-title').innerText = "Tambah Radio Baru";
+            document.getElementById('input-name').value = "";
+            document.getElementById('input-sub').value = "";
+            document.getElementById('input-keyword').value = "";
+            document.getElementById('input-url').value = "";
+            document.getElementById('input-province').value = "Jawa Tengah";
+            document.getElementById('modal-delete-btn').classList.add('hidden');
+            document.getElementById('search-results-box').classList.add('hidden');
+            document.getElementById('station-modal').classList.remove('hidden');
+        }
+
+        function openEditModal(event, id) {
+            if (event) event.stopPropagation();
+            editingStationId = id;
+            const st = allStations.find(s => s.id === id);
+            if (!st) return;
+
+            document.getElementById('modal-title').innerText = "Edit Stasiun Radio";
+            document.getElementById('input-name').value = st.name || "";
+            document.getElementById('input-sub').value = st.subtitle || "";
+            document.getElementById('input-keyword').value = st.keyword || "";
+            document.getElementById('input-url').value = st.url || "";
+            document.getElementById('input-province').value = st.state || "Jawa Tengah";
+            document.getElementById('modal-delete-btn').classList.remove('hidden');
+            document.getElementById('search-results-box').classList.add('hidden');
+            document.getElementById('station-modal').classList.remove('hidden');
+        }
+
+        function openCurrentStationEdit() {
+            if (activeStationList.length > 0) {
+                const current = activeStationList[currentPlayIndex];
+                if (current) openEditModal(null, current.id);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('station-modal').classList.add('hidden');
+        }
+
+        function saveModalStation() {
+            const name = document.getElementById('input-name').value.trim();
+            const subtitle = document.getElementById('input-sub').value.trim();
+            const keyword = document.getElementById('input-keyword').value.trim();
+            const url = document.getElementById('input-url').value.trim();
+            const province = document.getElementById('input-province').value;
+
+            if (!name) {
+                showToast("Nama stasiun radio wajib diisi!", "error");
+                return;
+            }
+
+            let customList = [];
+            const saved = localStorage.getItem('radio_app_custom_stations');
+            if (saved) {
+                try { customList = JSON.parse(saved); } catch (e) {}
+            }
+
+            if (editingStationId) {
+                const existing = allStations.find(s => s.id === editingStationId);
+                if (existing) {
+                    existing.name = name;
+                    existing.subtitle = subtitle;
+                    existing.keyword = keyword || name;
+                    existing.url = url;
+                    existing.state = province;
+                    existing.isHttps = url.startsWith('https://');
+
+                    const idx = customList.findIndex(c => c.id === editingStationId);
+                    if (idx !== -1) {
+                        customList[idx] = { ...existing };
+                    } else {
+                        customList.push({ ...existing });
+                    }
+                }
+            } else {
+                const newId = `custom-${Date.now()}`;
+                const newObj = {
+                    id: newId,
+                    name: name,
+                    subtitle: subtitle || "Custom Stream",
+                    state: province,
+                    keyword: keyword || name,
+                    url: url,
+                    isHttps: url.startsWith('https://')
+                };
+                allStations.unshift(newObj);
+                favoriteIds.add(newId);
+                customList.push(newObj);
+            }
+
+            localStorage.setItem('radio_app_custom_stations', JSON.stringify(customList));
+            saveFavoritesToStorage();
+            renderCurrentTab();
+            closeModal();
+            showToast("Stasiun radio berhasil disimpan!", "success");
+        }
+
+        function deleteCurrentStation() {
+            if (!editingStationId) return;
+
+            allStations = allStations.filter(s => s.id !== editingStationId);
+            favoriteIds.delete(editingStationId);
+
+            let customList = [];
+            const saved = localStorage.getItem('radio_app_custom_stations');
+            if (saved) {
+                try { customList = JSON.parse(saved).filter(c => c.id !== editingStationId); } catch (e) {}
+            }
+            localStorage.setItem('radio_app_custom_stations', JSON.stringify(customList));
+            saveFavoritesToStorage();
+
+            renderCurrentTab();
+            closeModal();
+            showToast("Stasiun radio dihapus.", "info");
+        }
+
+        // Online Database Search Tool inside Modal
+        async function searchRadioBrowserInModal() {
+            const keyword = document.getElementById('input-keyword').value || document.getElementById('input-name').value;
+            if (!keyword) {
+                showToast("Masukkan kata kunci pencarian terlebih dahulu!", "error");
+                return;
+            }
+
+            const box = document.getElementById('search-results-box');
+            box.classList.remove('hidden');
+            box.innerHTML = `<p class="text-xs text-slate-400 p-2 text-center animate-pulse">Mencari server online untuk '${keyword}'...</p>`;
+
+            try {
+                const mirrors = [
+                    'https://de1.api.radio-browser.info/json/stations/search',
+                    'https://at1.api.radio-browser.info/json/stations/search'
+                ];
+                let results = [];
+
+                for (const url of mirrors) {
+                    try {
+                        const res = await fetch(`${url}?name=${encodeURIComponent(keyword)}&limit=8`);
+                        if (res.ok) {
+                            results = await res.json();
+                            break;
+                        }
+                    } catch (e) {}
+                }
+
+                if (results.length === 0) {
+                    box.innerHTML = `<p class="text-xs text-amberaccent p-2 text-center">Tidak ditemukan server online.</p>`;
+                    return;
+                }
+
+                box.innerHTML = '';
+                results.forEach(item => {
+                    const streamUrl = item.url_resolved || item.url;
+                    const isHttps = streamUrl.startsWith('https://');
+                    const div = document.createElement('div');
+                    div.className = "p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs hover:border-cyanaccent transition cursor-pointer";
+                    div.innerHTML = `
+                        <div class="overflow-hidden pr-2">
+                            <p class="font-bold text-slate-200 truncate">${item.name}</p>
+                            <p class="text-[10px] text-slate-400 font-mono truncate">${item.codec || 'MP3'} | ${item.bitrate || '128'} kbps</p>
+                        </div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isHttps ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}">
+                            ${isHttps ? 'HTTPS' : 'HTTP'}
+                        </span>
+                    `;
+                    div.onclick = () => {
+                        document.getElementById('input-url').value = streamUrl;
+                        if (!document.getElementById('input-name').value) {
+                            document.getElementById('input-name').value = item.name;
+                        }
+                        box.classList.add('hidden');
+                    };
+                    box.appendChild(div);
+                });
+            } catch (err) {
+                box.innerHTML = `<p class="text-xs text-rose-400 p-2 text-center">Gagal menghubungi database online.</p>`;
+            }
+        }
+
+        // -------------------------------------------------------------
+        // TOAST NOTIFICATION ENGINE
+        // -------------------------------------------------------------
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-900 border-slate-700 text-slate-200";
+            if (type === 'success') bgClass = "bg-emerald-950 border-emerald-500 text-emerald-200";
+            if (type === 'error') bgClass = "bg-rose-950 border-rose-500 text-rose-200";
+            if (type === 'info') bgClass = "bg-cyan-950 border-cyanaccent text-cyan-200";
+
+            toast.className = `px-4 py-3 rounded-2xl border ${bgClass} text-xs font-bold shadow-xl transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto flex items-center gap-2`;
+            toast.innerText = message;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
